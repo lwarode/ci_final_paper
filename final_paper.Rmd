@@ -1,0 +1,1099 @@
+---
+title: Final Paper Causal Inference\footnote{\url{https://www.hertie-school.org/en/study/course-catalogue/course/course/causal-inference}} \ -- Explaining Public Attention through Electoral Success with RDD\footnote{\href{https://github.com/lwarode/ci_final_paper}{Link to Project Repository}}
+output: pdf_document
+author: Lukas Warode\footnote{Hertie School, Berlin}
+header-includes: 
+   \usepackage{graphicx}
+   \usepackage{float}
+   \usepackage{fancyhdr}
+   \pagestyle{fancy}
+   \setlength\headheight{28pt}
+   \fancyhead[L]{\includegraphics[width=5cm]{figures/hertie-school.png}}
+bibliography: bibliography.bib
+abstract: "Test abstract"
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(magrittr)
+library(knitr)
+library(kableExtra)
+library(ggridges)
+library(papeR) # just using papeR::summarise() once
+library(rddtools)
+library(modelsummary)
+library(patchwork)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.pos = "H")
+```
+
+```{r, include=FALSE}
+data_all <- readRDS("data_processed/data_all.Rds")
+source("theme_academia.R")
+theme_set(theme_academia())
+```
+
+# Adding Abstract?
+
+# Introduction 
+
+The last few years have been characterized by increasing overall digitalization in general and "mediatisation" of politics in particular [@marcinkowski2014mediatisation]. This trend reveals new opportunities for political science, while also challenging existing frameworks and established theories. One of the most visited webpages in the internet -- the only encyclopedia *Wikipedia* -- presents a controversial pillar in the research community. While facing a lot of rejection in academia since its establishment, recent studies have shown the general potential of Wikipedia as a far-reaching data source [@brown2011wikipedia; @gobel2018political], which is also capable of being a competitor or replacement of existing established data sources in political science [@herrmann2021party]. Wikipedia is not only delivering encyclopedic information with its articles per se, but also offering the potential to analyze obtained meta information, such as page editing dynamics and page views. The level of observation plays a crucial part in this case: With more general units, such as parties or elections, the number of observations is rather low and the scope of potential analyses might be limited, whereas MP-level analyses do not face the problem of observational scarcity (as least not in established democracies). @gobel2021comparative introduce the possibilities of analyzing MPs based on scraped data from Wikipedia and present a databsase that covers biographical, political and article meta-information for parliamentarians in several countries.
+\break
+Election research in political science is classically dominated by "genuine" electoral variables, such as vote shares and turnout. With the rise of regression discontinuity design (RDD) in economics and political science, the most common application of this technique is also falling in the realm of classical electoral analyses [@lee2008randomized; @hainmueller2008incumbency; @eggers2015validity]. With the goal of combining a topic that is relevant for an increasing digitalized society and polity by making use of an established causal inference method (RDD), this paper is trying to make a contribution in assessing the relationship between MPs' digital public attention and electoral success, while putting an emphasis on technical specifications and potential analysis problems that are inherently part of the underlying data structure itself.
+
+\newpage
+
+# Theoretical and Empirical Foundations
+
+## *Public Attention in Digital Spheres*
+
+As already introduced, public attention in a digitalized society and polity is an increasingly important concept that offers various possibilities for modern social science applications. When trying to operationalize public attention on the level of parliamentarians, several options are feasible. Wikipedia page editing dynamics represent one potential dynamic that is able to reveal politically motivated behavior, but also has the demerit of an overall lack of generalizability, since page edits do not necessarily reflect a representative measure of public attention across the whole society [@yasseri2016wikipedia; @gobel2018political]. In fact, they are often motivated by internal political dynamics: @gobel2018political [p. 165] find that 51% of German MPs' Wikipedia page edits can be traced back to IP addresses that are linked to the German Bundestag.
+\break
+A more suitable and representative metric that serves as an assessment indicator of societal based public attention can be found in the general article traffic of respective MPs [@yasseri2016wikipedia]. @yasseri2016wikipedia find the suitability of page views as a explanatory variable for electoral outcomes. Daily Wikipedia page views on MP level are also part of the *Comparative Legislators Database* (CLD) from @gobel2021comparative, which is marking the transition of Wikipedia based information into the realm of traditional empirical political science.
+
+## *Electoral Districts and MPs*
+
+Analyzing and explaining electoral outcomes is at the core of empirical political science. Vote shares play a prominent role, either on a federal or district level. The former case makes it normally harder to analyze the performance of individual candidates, while the latter presents clear electoral metrics that indicate the performance of candidates and incumbents in elections. Assessing the electoral success of a district candidate can simply be measured by the vote share. In order to make it comparable and to have a clear indication on whether and how much a candidate won or lost the district election, the *Margin of Victory* (MOV) can be used. @hainmueller2008incumbency [p. 219] define it as the difference between the vote share of the party and the party with the highest vote share. For winning parties, it is simply the vote share difference between them and the party with the second highest vote share, while the MOV for all other parties is the difference between their vote share and the result of the winning party. By definition, all winning candidates have a positive MOV, whereas all loosing competitors have a negative MOV, which also yields a dichotomous differentiation.
+\break
+Electoral systems that at least include a single member district (SMD) element, such as the German (federal) system, are suitable for analyzing incumbency via MOVs [@nohlen2013wahlrecht]. Another important factor for the suitability of the case selection lies in the stability of political systems with regards to the direct candidates and its party affiliations. In emerging democracies and thus emerging party systems, observing consistent incumbency and party affiliation is less likely to happen, with the implication of a rather vague research design structure. Analyzing the effect of incumbency in established democracies, such as the United Kingdom [@eggers2009mps] or Germany [@hainmueller2008incumbency], is backed up by validated studies on the other hand.
+
+# Regression Discontinuity Design
+
+The aim of this papers is to measure the effect of electoral success on digital public attention in a causal inference framework. As already mentioned, measuring electoral success via MOV is a common procedure in political science, which is also offering the potential of treatment allocation in a regression discontinuity design (RDD). But what is a RDD and why should one use it?
+\break
+@cook2008waiting reflects on the history of RDD and concludes that RDD was "waiting for life", marking the emergence of very influential econometrical articles at the turn of the millennium [@angrist1999using; @hahn2001identification]. @lee2008randomized and @hainmueller2008incumbency confirm the applicability of RDD in political science. The central idea of RDD is to assign treatment according to another variable (either called *running* or *forcing* variable). Figure 1 [@steiner2017graphical p. 264] is showing the directed acyclic graph (DAG) that explains the causal structure of RDDs. Graph A is presenting the structure before the limiting procedure of the RDD is applied: The running (continuous) variable $X$ is causing both the treatment $D$ and the outcome $Y$, while being potentially related to a set of variables $U$. Thus, $X$ presents an observable confounder.
+
+![DAG of RDD](figures/Steiner-et-al_2017_p164.png)
+
+The limiting graph is indicating how we can identify causal effects in the given structure: $X$ determines the value of treatment with the cutpoint $c_0$. If $X$ is greater than the chosen cutpoint $c_0$, the observation is assigned $i$ with treatment ($D_i=1$), otherwise ($X$ equal or less than $c_0$) the observation $i$ is assigned to the control group ($D_i=0$):
+
+$$
+D_i =
+   \begin{cases} 1
+       \text{ if } & X_i > c_0
+       \\ 0
+       \text{ if } & X_i\leq{c_0} 
+   \end{cases}
+$$
+
+The core assumption for estimating causal effects lies in the assumed *local randomization* around the cutoff $c_0$. In addition, the continuity of average potential outcomes around $c_0$ is another key assumption: $E\big[Y_i(d)\mid X_i=x]$ is continuous in x around $X_i=c_0$ for $d=0,1$.
+This implies that we are able to estimate the *local average treatment effect* (LATE)\footnote{This paper is solely making use of sharp RDD, while fuzzy RDD is not playing a role in the research design. Many papers conventionally label the sharp LATE as $\delta_{SRD}$, referring to the abbreviation of sharp regression discontinuity (SRD).} around a certain (optimal) bandwidth $h$, which can be estimated [@angrist1995identification; @imbens2012optimal]. The LATE is defined as follows:
+
+$$
+\delta_{LATE}=E\big[Y_i(1) - Y_i(0)\mid X_i=c_0]
+$$
+
+The size of the (optimal) bandwidth $h>0$ is deciding how large the range or window of included observations around the cutoff $c_0$ is: 
+
+$$
+c_0-h \leq{X_i}\leq{c_0+h}
+$$
+
+The size of the optimal bandwidth is conventionally calculated by using the Imbens-Kalyanaraman (IK) algorithm [@imbens2012optimal]. Estimating the LATE implies also necessity of choosing a certain model design. Several options are possible: Non-parametric, parametric (linear and non-linear models), while parametric models can be estimated with common and different slopes. It is often advised to avoid too complex models, such as high-order polynomials [@gelman2019high].
+
+# Data
+
+To be able to apply the research design implies the case selection of countries that at least partially use SMDs in their electoral system. Prominent examples of political systems in Europe that use SMDs include the United Kingdom and Germany. Germany has proven to be a suitable country for applying both election research on SMDs by using MOV and RDD [@hainmueller2008incumbency], as well as also ensuring appropriate data quality regarding MPs on the federal level [@gobel2018political]. Hence, Germany is chosen as the country for conducting the analysis.
+
+The CLD [@gobel2021comparative] offers traffic data for German (federal) MPs from December 2007 until end of March 2020 (using the `R` API `legislatoR` version 1.0). It is possible to analyze electoral district races of MPs of every federal election that falls within this time span. Consequently, the included elections for this analysis are the federal elections 2009, 2013 and 2017. Federal election results on a constituency level can be obtained from the *Bundeswahlleiter*\footnote{\url{https://www.bundeswahlleiter.de/bundestagswahlen/2021/ergebnisse.html}}. The distribution of the MOVs\footnote{The code of this paper, used for this and the following calculations and visualizations, can be found here: \url{https://github.com/lwarode/ci_final_paper}} is shown per election in Figure 2. The probability density plots are indicating that the MOV is roughly equally distributed across the three included elections, while also highlighting the imbalance in the variable when comparing district winners (positive MOV) and (potential\footnote{A demerit in using CLD for the research design is the formal scope of actual parliamentarians, while data on candidates is not part of the database. This implies that we can only calculate the MOV for a) all winning candidates, and b) for all losing candiates that are incumbent, whereby we cannot fully be sure that losing incumbents did actually compete again in the same district.}) district losers (negative MOV). The figure also highlights the imbalance of the MOV variable in terms of actual winners and losers: In all three elections, the large majority of candidates (n: 1046, 90%) has a positive MOV (election winners), whereas only 10% (n: 114) of the sample are election losers (negative MOV). However, in a RDD analysis, this fact will likely not cause statistical problems, since only values around the cutoff threshold are included, which effectively excludes observations with high positive MOVs.
+
+```{r, fig.cap = "Distribution of Margin of Victory", fig.width=8, fig.height=4, fig.}
+data_all %>% 
+  ggplot(aes(x = mov, y = ym_date)) + 
+  stat_density_ridges(
+    quantile_lines = T,
+    jittered_points = T,
+    point_shape = "|",
+    alpha = 0.5,
+    scale = 0.75,
+    quantiles = 4
+    ) +
+  scale_y_discrete(expand = expand_scale(mult = c(0.1, 0.5))) +
+  geom_vline(xintercept = 0, linetype = 2, alpha = 0.75) +
+  labs(x = "Margin of Victory", y = "Election") +
+  labs(caption = "(Probability Density Distribution including Quantiles)")
+```
+
+To capture the dynamics of MPs' digital public attention, it is not enough to look only at a fixed value metric, but rather to measure temporal trends. To measure the trend in a given time interval, the difference between either monthly sum or monthly mean values of page views from two dates are considered. When calculating the trend, it is important to use the same period respectively:
+
+$$
+Trend \ Mean_{ijd} = Mean_{ij+d} - Mean_{ij-d}
+$$
+$$
+Trend \ Sum_{ijd} = Sum_{ij+d} - Sum_{ij-d}
+$$
+For every every MP $i$ in month $j$, the trend can be calculated by choosing a time period value $d$. For instance, when capturing the mean trend of MP $i$ for the federal election in October 2009 with $d=1 \ month$, the difference between the mean monthly page views for November 2009 and September 2009 is computed, covering the dynamics of a 2 month interval.
+
+Table 1 is showing all the relevant variables for this analysis. For both monthly mean and sum page view dynamics, every trend metric with time period values ($d$) 1, 3, 6 and 12 months is calculated, yielding respectively the dynamics of 2, 6, 12 and 24 months time intervals. Looking at the trend values, the large variance is striking. For instance, the 3 months sum trend metric is ranging from -70449 to 57477, while having a standard deviation (SD) that is 43 times larger than the mean of the metric. The appendix also includes scatterplots of the non-transformed trend metrics in relationship with the MOV, highlighting outliers. This in indeed no surprise: As already the non-trend monthly mean and sum values are indicating, there is a large variation in the variable, which is due to the uneven actual (public) relevance and attention that MPs receive. When prominent politicians, like former chancellor Angela Merkel did win her district elections from 2009 to 2017, her level of (digital) public attention exceeds the average first-time district winner by far. 
+\break
+What are pertinent measures to avoid dealing with a large variance and skewness in the outcome measure, which could violate relevant statistical assumptions? Transforming and rescaling are established ways in statistical applications to deal with those problems. A prominent way is applying log-transformation [@changyong2014log]. While log-transforming is not solving all the problems effectively, it is also incapable in converting negative values, which leads to an effective pruning of the sample, when dealing with negative values that are prominent in the trend metrics as indicated in Table 1: The number of lost observations, when log-transforming reaches from 416 (36% of all observations) to 856 (74% of all observations), which constitutes a huge share of the original sample respectively. However, it could also be interesting to just analyze MPs that enjoyed a digital public attention boost, which would be effectively the case when working with log-transformed outcomes.
+\break
+When trying to obtain a similar result when transforming skewed variables, but also also being able to rescale negative values, inverse hyperbolic sine (ISH) transformation is a common measure in econometrics [@bellemare2020elasticities]. Applying ISH to a variable is accomplished in the following way:
+
+$$
+x_{ISH} = \log(x+\sqrt{x^2+1}),
+$$
+
+where the natural logarithm ($\ln$) is normally used. Table 1 indicates the ISH-transformed trend variables and is showing that the variance, as well as the range, including both positive and negative observations, is reduced without pruning the sample as log-transformation did.
+
+\renewcommand{\arraystretch}{1.5}
+```{r}
+data_all %>% 
+  select(`Margin of Victory` = mov,
+         `Monthly Sum of Page Traffic` = sum_traffic,
+         `Mean of Daily Page Traffic per Month` = mean_traffic, 
+         `Trend Mean 1 Month` = trend_mean_one_month_before_after_traffic,
+         `Trend Mean 3 Months` = trend_mean_three_months_before_after_traffic,
+         `Trend Mean 6 Months` = trend_mean_six_months_before_after_traffic,
+         `Trend Mean 12 Months` = trend_mean_twelve_months_before_after_traffic,
+         `(Log) Trend Mean 1 Month` = log_trend_mean_one_month_before_after_traffic,
+         `(Log) Trend Mean 3 Months` = log_trend_mean_three_months_before_after_traffic,
+         `(Log) Trend Mean 6 Months` = log_trend_mean_six_months_before_after_traffic,
+         `(Log) Trend Mean 12 Months` = log_trend_mean_twelve_months_before_after_traffic,
+         `(ISH) Trend Mean 1 Month` = ish_trend_mean_one_month_before_after_traffic,
+         `(ISH) Trend Mean 3 Months` = ish_trend_mean_three_months_before_after_traffic,
+         `(ISH) Trend Mean 6 Months` = ish_trend_mean_six_months_before_after_traffic,
+         `(ISH) Trend Mean 12 Months` = ish_trend_mean_twelve_months_before_after_traffic,
+         `Trend Sum 1 Month` = trend_sum_one_month_before_after_traffic,
+         `Trend Sum 3 Months` = trend_sum_three_months_before_after_traffic,
+         `Trend Sum 6 Months` = trend_sum_six_months_before_after_traffic,
+         `Trend Sum 12 Months` = trend_sum_twelve_months_before_after_traffic,
+         `(Log) Trend Sum 1 Month` = log_trend_sum_one_month_before_after_traffic,
+         `(Log) Trend Sum 3 Months` = log_trend_sum_three_months_before_after_traffic,
+         `(Log) Trend Sum 6 Months` = log_trend_sum_six_months_before_after_traffic,
+         `(Log) Trend Sum 12 Months` = log_trend_sum_twelve_months_before_after_traffic,
+         `(ISH) Trend Sum 1 Month` = ish_trend_sum_one_month_before_after_traffic,
+         `(ISH) Trend Sum 3 Months` = ish_trend_sum_three_months_before_after_traffic,
+         `(ISH) Trend Sum 6 Months` = ish_trend_sum_six_months_before_after_traffic,
+         `(ISH) Trend Sum 12 Months` = ish_trend_sum_twelve_months_before_after_traffic
+         ) %>%
+  mutate(across(starts_with("(Log)"), ~ if_else(is.infinite(.x) | is.nan(.x), NA_real_, .x))) %>% 
+  # filter(`(Log) Trend Sum 1 Month` != -Inf) %>% 
+  # filter(across(starts_with("(Log)"), ~ .x != -Inf & !is.nan(.x))) %>%
+  papeR::summarise() %>% 
+  as.data.frame() %>% 
+  .[, !duplicated(colnames(.))] %>% 
+  select(-Q1, -Q3) %>% 
+  # mutate_if(is.double, ~ as.character(.x) %>% trimws("both") %>% as.double()) %>% 
+  kable(caption = "Descriptive Statistics of Relevant Variables", booktabs = T, escape = F) %>%
+  add_footnote("Negative infinite as well no real numbers that were generated due to log-scaling the trend variables were replaced with `NAs` (missing values) in order to display the descriptive statistics correctly.") %>% 
+  # footnote(general = "Negative infinite as well no real numbers that were generated due to log-scaling the trend variables were replaced with `NAs` (missing values) in order to display the descriptive statistics correctly.", footnote_as_chunk = F, number = "test") %>%
+  kable_styling(
+    position = "center", 
+    latex_options = c("scale_down", "striped", "HOLD_position")
+  ) 
+```
+\renewcommand{\arraystretch}{1}
+
+Figure 3 is showing the relationship between MOV and the trend dynamics for monthly page view mean and sum values (ISH-transformed). The scatterplot is supplemented by separately run linear regression curves, which are indicating a small jump respectively, especially for the 6 and 12 months trends. These jumps are potential indicators of significant LATEs, however, they have to hold locally, after pruning the sample equally around the cutoff value by using IK bandwidth [@imbens2012optimal]. In addition, the plot is also revealing the visual impression that there is no global positive relationship between MOV and the page view trends. In order to be able to make further plausible statistical and causal statements, the RDD needs to be applied.
+
+```{r, fig.cap = "Scatterplot with Separate Linear Regression (ISH Transformation)", fig.height=8, out.extra=''}
+# ish ---------------------------------------------------------------------
+# ish trend mean
+labels_trend_ish_trend_mean <- c(
+  `ish_trend_mean_one_month_before_after_traffic` = "(ISH) Trend Mean 1 Month",
+  `ish_trend_mean_three_months_before_after_traffic` = "(ISH) Trend Mean 3 Months",
+  `ish_trend_mean_six_months_before_after_traffic` = "(ISH) Trend Mean 6 Months",
+  `ish_trend_mean_twelve_months_before_after_traffic` = "(ISH) Trend Mean 12 Months"
+)
+
+pl_ish_trend_mean <- data_all %>% 
+  select(mov, election_won, starts_with("ish_trend_mean")) %>% 
+  pivot_longer(cols = -c(mov, election_won), names_to = "var_name", values_to = "ish_trend_mean") %>% 
+  mutate(
+    var_name = factor(
+      var_name,
+      levels = c(
+        "ish_trend_mean_one_month_before_after_traffic",
+        "ish_trend_mean_three_months_before_after_traffic",
+        "ish_trend_mean_six_months_before_after_traffic",
+        "ish_trend_mean_twelve_months_before_after_traffic"
+      )
+    )
+  ) %>% 
+  ggplot(aes(x = mov, y = ish_trend_mean)) + 
+  facet_wrap(~ var_name, labeller = as_labeller(labels_trend_ish_trend_mean)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(aes(group = election_won), method = "lm") +
+  labs(x = "Margin of Victory", y = "(ISH) Trend Mean") +
+  geom_vline(xintercept = 0, linetype = 2, alpha = 0.75)
+
+# ish trend sum
+labels_trend_ish_trend_sum <- c(
+  `ish_trend_sum_one_month_before_after_traffic` = "(ISH) Trend Sum 1 Month",
+  `ish_trend_sum_three_months_before_after_traffic` = "(ISH) Trend Sum 3 Months",
+  `ish_trend_sum_six_months_before_after_traffic` = "(ISH) Trend Sum 6 Months",
+  `ish_trend_sum_twelve_months_before_after_traffic` = "(ISH) Trend Sum 12 Months"
+)
+
+pl_ish_trend_sum <- data_all %>% 
+  select(mov, election_won, starts_with("ish_trend_sum")) %>% 
+  pivot_longer(cols = -c(mov, election_won), names_to = "var_name", values_to = "ish_trend_sum") %>% 
+  mutate(
+    var_name = factor(
+      var_name,
+      levels = c(
+        "ish_trend_sum_one_month_before_after_traffic",
+        "ish_trend_sum_three_months_before_after_traffic",
+        "ish_trend_sum_six_months_before_after_traffic",
+        "ish_trend_sum_twelve_months_before_after_traffic"
+      )
+    )
+  ) %>% 
+  ggplot(aes(x = mov, y = ish_trend_sum)) + 
+  facet_wrap(~ var_name, labeller = as_labeller(labels_trend_ish_trend_sum)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(aes(group = election_won), method = "lm") +
+  labs(x = "Margin of Victory", y = "(ISH) Trend Sum") + 
+  geom_vline(xintercept = 0, linetype = 2, alpha = 0.75)
+
+(pl_ish_trend_mean + ggtitle("Mean")) / (pl_ish_trend_sum + ggtitle("Sum"))
+```
+
+# Analysis and Results
+
+In this chapter, the results of the RDD are presented and interpreted. As explained above, the respective outcome measures (mean and sum trends) are ISH-transformed in order to deal with the variance and skewness of the variables. Tables 2 (mean trends) and 3 (sum trends) are showing the results for the RDD models by using the same slope for both the control and treatment group. All LATE coefficients in the mean trend models are significant with a significance level of at least 95%. Surprisingly, the LATE for the 1 month mean trend model has a negative sign, while all other LATE coefficients are positive. In the sum trend models, the LATE coefficients of the 3 month model (90% significance level), as well as the 6 and 12 month model (99.9% significance level) are also significant, while the 1 month model LATE is losing its significance. No MOV coefficient of all 8 models is yielding significance. Thus, we can conclude that there is a group level difference between treatment and control group, while the effect of the running variable (MOV) has no general effect around the cutoff value.
+
+```{r}
+# ish mean trend same slope
+models <- list()
+
+models[["Trend Mean 1 Month"]] <- rdd_data(
+  data_all$ish_trend_mean_one_month_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "same",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$ish_trend_mean_one_month_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Mean 3 Months"]] <- 
+rdd_data(
+  data_all$ish_trend_mean_three_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "same",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$ish_trend_mean_three_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Mean 6 Months"]] <- rdd_data(
+  data_all$ish_trend_mean_six_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "same",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$ish_trend_mean_six_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Mean 12 Months"]] <- rdd_data(
+  data_all$ish_trend_mean_twelve_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "same",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$ish_trend_mean_twelve_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+msummary(
+  models,
+  estimate = "{estimate}{stars}",
+  statistic = "({std.error})",
+  stars = c("*" = .1, "**" = .05, "***" = .01, "****" = .001),
+  coef_map = c("(Intercept)" = "Intercept",
+               "D" = "LATE",
+               "x" = "Margin of Victory"
+  ),
+  caption = "RDD ISH-Transformed Mean Trends (Same Slope)"
+) %>% 
+  footnote(general = "Standard errors in parentheses. * p <0.1, ** p <0.05, *** p <0.01, **** p<0.001.", 
+           footnote_as_chunk = T) %>% 
+  kable_styling(latex_options = c("scale_down", "HOLD_position"))
+```
+
+```{r}
+# ish sum trend same slope
+models <- list()
+
+models[["Trend Sum 1 Month"]] <- rdd_data(
+  data_all$ish_trend_sum_one_month_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "same",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$ish_trend_sum_one_month_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Sum 3 Months"]] <- 
+rdd_data(
+  data_all$ish_trend_sum_three_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "same",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$ish_trend_sum_three_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Sum 6 Months"]] <- rdd_data(
+  data_all$ish_trend_sum_six_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "same",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$ish_trend_sum_six_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Sum 12 Months"]] <- rdd_data(
+  data_all$ish_trend_sum_twelve_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "same",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$ish_trend_sum_twelve_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+msummary(
+  models,
+  estimate = "{estimate}{stars}",
+  statistic = "({std.error})",
+  stars = c("*" = .1, "**" = .05, "***" = .01, "****" = .001),
+  coef_map = c("(Intercept)" = "Intercept",
+               "D" = "LATE",
+               "x" = "Margin of Victory"
+  ),
+  caption = "RDD ISH-Transformed Sum Trends (Same Slope)"
+) %>% 
+  footnote(general = "Standard errors in parentheses. * p <0.1, ** p <0.05, *** p <0.01, **** p<0.001.", 
+           footnote_as_chunk = T) %>% 
+  kable_styling(latex_options = c("scale_down", "HOLD_position"))
+```
+
+Tables 4 and 5 show the results for the mean and sum trend models (also ISH-transformed), where the regression slopes were estimated separately. Again, no MOV coefficient is significant, also not when estimated group-wise. While the 1 and 3 months trend models are providing no significant LATE coefficient, neither for the mean nor for the sum trends, the 6 and 12 months trend models are yielding significant LATE coefficients across all model specifications.
+
+```{r}
+# ish mean trend separate slopes
+models <- list()
+
+models[["Trend Mean 1 Month"]] <- rdd_data(
+  data_all$ish_trend_mean_one_month_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "separate",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$ish_trend_mean_one_month_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Mean 3 Months"]] <- 
+rdd_data(
+  data_all$ish_trend_mean_three_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "separate",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$ish_trend_mean_three_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Mean 6 Months"]] <- rdd_data(
+  data_all$ish_trend_mean_six_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "separate",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$ish_trend_mean_six_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Mean 12 Months"]] <- rdd_data(
+  data_all$ish_trend_mean_twelve_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "separate",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$ish_trend_mean_twelve_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+msummary(
+  models,
+  estimate = "{estimate}{stars}",
+  statistic = "({std.error})",
+  stars = c("*" = .1, "**" = .05, "***" = .01, "****" = .001),
+  coef_map = c("(Intercept)" = "Intercept",
+               "D" = "LATE",
+               "x" = "Margin of Victory (Control)",
+               "x_right" = "Margin of Victory (Treatment)"
+  ),
+  caption = "RDD ISH-Transformed Mean Trends (Separate Slopes)"
+) %>% 
+  footnote(general = "Standard errors in parentheses. * p <0.1, ** p <0.05, *** p <0.01, **** p<0.001.", 
+           footnote_as_chunk = T) %>% 
+  kable_styling(latex_options = c("scale_down", "HOLD_position"))
+```
+
+
+```{r}
+# ish sum trend separate slopes
+models <- list()
+
+models[["Trend Sum 1 Month"]] <- rdd_data(
+  data_all$ish_trend_sum_one_month_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "separate",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$ish_trend_sum_one_month_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Sum 3 Months"]] <- 
+rdd_data(
+  data_all$ish_trend_sum_three_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "separate",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$ish_trend_sum_three_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Sum 6 Months"]] <- rdd_data(
+  data_all$ish_trend_sum_six_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "separate",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$ish_trend_sum_six_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Sum 12 Months"]] <- rdd_data(
+  data_all$ish_trend_sum_twelve_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "separate",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$ish_trend_sum_twelve_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+msummary(
+  models,
+  estimate = "{estimate}{stars}",
+  statistic = "({std.error})",
+  stars = c("*" = .1, "**" = .05, "***" = .01, "****" = .001),
+  coef_map = c("(Intercept)" = "Intercept",
+               "D" = "LATE",
+               "x" = "Margin of Victory (Control)",
+               "x_right" = "Margin of Victory (Treatment)"
+  ),
+  caption = "RDD ISH-Transformed Sum Trends (Separate Slopes)"
+) %>% 
+  footnote(general = "Standard errors in parentheses. * p <0.1, ** p <0.05, *** p <0.01, **** p<0.001.", 
+           footnote_as_chunk = T) %>% 
+  kable_styling(latex_options = c("scale_down", "HOLD_position"))
+```
+
+
+# Discussion and Conclusion
+
+
+
+
+
+
+
+
+
+
+"close winners/loosers" not really close from a polsci perspective?
+
+
+just linear models added
+
+variation in bandwidth
+
+\newpage
+# References
+
+<div id="refs"></div>
+
+\newpage
+# Appendix
+
+
+```{r, fig.cap = "Scatterplot with Separate Linear Regression (No Transformation)", fig.height=8, out.extra=''}
+# no transformation -------------------------------------------------------
+# trend mean
+labels_trend_trend_mean <- c(
+  `trend_mean_one_month_before_after_traffic` = "Trend Mean 1 Month",
+  `trend_mean_three_months_before_after_traffic` = "Trend Mean 3 Months",
+  `trend_mean_six_months_before_after_traffic` = "Trend Mean 6 Months",
+  `trend_mean_twelve_months_before_after_traffic` = "Trend Mean 12 Months"
+)
+
+pl_trend_mean <- data_all %>% 
+  select(mov, election_won, starts_with("trend_mean")) %>% 
+  pivot_longer(cols = -c(mov, election_won), names_to = "var_name", values_to = "trend_mean") %>% 
+  mutate(
+    var_name = factor(
+      var_name,
+      levels = c(
+        "trend_mean_one_month_before_after_traffic",
+        "trend_mean_three_months_before_after_traffic",
+        "trend_mean_six_months_before_after_traffic",
+        "trend_mean_twelve_months_before_after_traffic"
+      )
+    )
+  ) %>% 
+  ggplot(aes(x = mov, y = trend_mean)) + 
+  facet_wrap(~ var_name, labeller = as_labeller(labels_trend_trend_mean)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(aes(group = election_won), method = "lm") +
+  labs(x = "Margin of Victory", y = "Trend Mean") +
+  geom_vline(xintercept = 0, linetype = 2, alpha = 0.75)
+
+# trend sum
+labels_trend_trend_sum <- c(
+  `trend_sum_one_month_before_after_traffic` = "Trend Sum 1 Month",
+  `trend_sum_three_months_before_after_traffic` = "Trend Sum 3 Months",
+  `trend_sum_six_months_before_after_traffic` = "Trend Sum 6 Months",
+  `trend_sum_twelve_months_before_after_traffic` = "Trend Sum 12 Months"
+)
+
+pl_trend_sum <- data_all %>% 
+  select(mov, election_won, starts_with("trend_sum")) %>% 
+  pivot_longer(cols = -c(mov, election_won), names_to = "var_name", values_to = "trend_sum") %>% 
+  mutate(
+    var_name = factor(
+      var_name,
+      levels = c(
+        "trend_sum_one_month_before_after_traffic",
+        "trend_sum_three_months_before_after_traffic",
+        "trend_sum_six_months_before_after_traffic",
+        "trend_sum_twelve_months_before_after_traffic"
+      )
+    )
+  ) %>% 
+  ggplot(aes(x = mov, y = trend_sum)) + 
+  facet_wrap(~ var_name, labeller = as_labeller(labels_trend_trend_sum)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(aes(group = election_won), method = "lm") +
+  labs(x = "Margin of Victory", y = "Trend Sum") + 
+  geom_vline(xintercept = 0, linetype = 2, alpha = 0.75)
+
+(pl_trend_mean + ggtitle("Mean")) / (pl_trend_sum + ggtitle("Sum"))
+```
+
+
+```{r, fig.cap = "Scatterplot with Separate Linear Regression (Log Transformation)", fig.height=8, out.extra=''}
+# log trend mean
+labels_trend_log_trend_mean <- c(
+  `log_trend_mean_one_month_before_after_traffic` = "(Log) Trend Mean 1 Month",
+  `log_trend_mean_three_months_before_after_traffic` = "(Log) Trend Mean 3 Months",
+  `log_trend_mean_six_months_before_after_traffic` = "(Log) Trend Mean 6 Months",
+  `log_trend_mean_twelve_months_before_after_traffic` = "(Log) Trend Mean 12 Months"
+)
+
+pl_log_trend_mean <- data_all %>% 
+  select(mov, election_won, starts_with("log_trend_mean")) %>% 
+  pivot_longer(cols = -c(mov, election_won), names_to = "var_name", values_to = "log_trend_mean") %>% 
+  mutate(
+    var_name = factor(
+      var_name,
+      levels = c(
+        "log_trend_mean_one_month_before_after_traffic",
+        "log_trend_mean_three_months_before_after_traffic",
+        "log_trend_mean_six_months_before_after_traffic",
+        "log_trend_mean_twelve_months_before_after_traffic"
+      )
+    )
+  ) %>% 
+  ggplot(aes(x = mov, y = log_trend_mean)) + 
+  facet_wrap(~ var_name, labeller = as_labeller(labels_trend_log_trend_mean)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(aes(group = election_won), method = "lm") +
+  labs(x = "Margin of Victory", y = "(Log) Trend Mean") +
+  geom_vline(xintercept = 0, linetype = 2, alpha = 0.75)
+
+# log trend sum
+labels_trend_log_trend_sum <- c(
+  `log_trend_sum_one_month_before_after_traffic` = "(Log) Trend Sum 1 Month",
+  `log_trend_sum_three_months_before_after_traffic` = "(Log) Trend Sum 3 Months",
+  `log_trend_sum_six_months_before_after_traffic` = "(Log) Trend Sum 6 Months",
+  `log_trend_sum_twelve_months_before_after_traffic` = "(Log) Trend Sum 12 Months"
+)
+
+pl_log_trend_sum <- data_all %>% 
+  select(mov, election_won, starts_with("log_trend_sum")) %>% 
+  pivot_longer(cols = -c(mov, election_won), names_to = "var_name", values_to = "log_trend_sum") %>% 
+  mutate(
+    var_name = factor(
+      var_name,
+      levels = c(
+        "log_trend_sum_one_month_before_after_traffic",
+        "log_trend_sum_three_months_before_after_traffic",
+        "log_trend_sum_six_months_before_after_traffic",
+        "log_trend_sum_twelve_months_before_after_traffic"
+      )
+    )
+  ) %>% 
+  ggplot(aes(x = mov, y = log_trend_sum)) + 
+  facet_wrap(~ var_name, labeller = as_labeller(labels_trend_log_trend_sum)) +
+  geom_point(alpha = 0.5) +
+  geom_smooth(aes(group = election_won), method = "lm") +
+  labs(x = "Margin of Victory", y = "(Log) Trend Sum") + 
+  geom_vline(xintercept = 0, linetype = 2, alpha = 0.75)
+
+(pl_log_trend_mean + ggtitle("Mean")) / (pl_log_trend_sum + ggtitle("Sum"))
+```
+
+
+```{r}
+# mean trend same slope
+models <- list()
+
+models[["Trend Mean 1 Month"]] <- rdd_data(
+  data_all$trend_mean_one_month_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "same",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$trend_mean_one_month_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Mean 3 Months"]] <- 
+rdd_data(
+  data_all$trend_mean_three_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "same",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$trend_mean_three_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Mean 6 Months"]] <- rdd_data(
+  data_all$trend_mean_six_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "same",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$trend_mean_six_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Mean 12 Months"]] <- rdd_data(
+  data_all$trend_mean_twelve_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "same",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$trend_mean_twelve_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+msummary(
+  models,
+  estimate = "{estimate}{stars}",
+  statistic = "({std.error})",
+  stars = c("*" = .1, "**" = .05, "***" = .01, "****" = .001),
+  coef_map = c("(Intercept)" = "Intercept",
+               "D" = "LATE",
+               "x" = "Margin of Victory"
+  ),
+  caption = "RDD Mean Trends (Same Slope)"
+) %>% 
+  footnote(general = "Standard errors in parentheses. * p <0.1, ** p <0.05, *** p <0.01, **** p<0.001.", 
+           footnote_as_chunk = T) %>% 
+  kable_styling(latex_options = c("scale_down", "HOLD_position"))
+```
+
+```{r, fig.p}
+#  sum trend same slope
+models <- list()
+
+models[["Trend Sum 1 Month"]] <- rdd_data(
+  data_all$trend_sum_one_month_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "same",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$trend_sum_one_month_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Sum 3 Months"]] <- 
+rdd_data(
+  data_all$trend_sum_three_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "same",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$trend_sum_three_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Sum 6 Months"]] <- rdd_data(
+  data_all$trend_sum_six_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "same",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$trend_sum_six_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Sum 12 Months"]] <- rdd_data(
+  data_all$trend_sum_twelve_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "same",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$trend_sum_twelve_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+msummary(
+  models,
+  estimate = "{estimate}{stars}",
+  statistic = "({std.error})",
+  stars = c("*" = .1, "**" = .05, "***" = .01, "****" = .001),
+  coef_map = c("(Intercept)" = "Intercept",
+               "D" = "LATE",
+               "x" = "Margin of Victory"
+  ),
+  caption = "RDD Sum Trends (Same Slope)"
+) %>% 
+  footnote(general = "Standard errors in parentheses. * p <0.1, ** p <0.05, *** p <0.01, **** p<0.001.", 
+           footnote_as_chunk = T) %>% 
+  kable_styling(latex_options = c("scale_down", "HOLD_position"))
+```
+
+
+```{r}
+#  mean trend separate slopes
+models <- list()
+
+models[["Trend Mean 1 Month"]] <- rdd_data(
+  data_all$trend_mean_one_month_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "separate",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$trend_mean_one_month_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Mean 3 Months"]] <- 
+rdd_data(
+  data_all$trend_mean_three_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "separate",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$trend_mean_three_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Mean 6 Months"]] <- rdd_data(
+  data_all$trend_mean_six_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "separate",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$trend_mean_six_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Mean 12 Months"]] <- rdd_data(
+  data_all$trend_mean_twelve_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "separate",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$trend_mean_twelve_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+msummary(
+  models,
+  estimate = "{estimate}{stars}",
+  statistic = "({std.error})",
+  stars = c("*" = .1, "**" = .05, "***" = .01, "****" = .001),
+  coef_map = c("(Intercept)" = "Intercept",
+               "D" = "LATE",
+               "x" = "Margin of Victory (Control)",
+               "x_right" = "Margin of Victory (Treatment)"
+  ),
+  caption = "RDD Mean Trends (Separate Slopes)"
+) %>% 
+  footnote(general = "Standard errors in parentheses. * p <0.1, ** p <0.05, *** p <0.01, **** p<0.001.", 
+           footnote_as_chunk = T) %>% 
+  kable_styling(latex_options = c("scale_down", "HOLD_position"))
+```
+
+
+```{r}
+#  sum trend separate slopes
+models <- list()
+
+models[["Trend Sum 1 Month"]] <- rdd_data(
+  data_all$trend_sum_one_month_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "separate",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$trend_sum_one_month_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Sum 3 Months"]] <- 
+rdd_data(
+  data_all$trend_sum_three_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "separate",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$trend_sum_three_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Sum 6 Months"]] <- rdd_data(
+  data_all$trend_sum_six_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "separate",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$trend_sum_six_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+models[["Trend Sum 12 Months"]] <- rdd_data(
+  data_all$trend_sum_twelve_months_before_after_traffic, 
+  data_all$mov, 
+  cutpoint = 0
+) %>% 
+  rdd_reg_lm(
+    slope = "separate",
+    bw = rdd_bw_ik(
+      rdd_data(
+        data_all$trend_sum_twelve_months_before_after_traffic,
+        data_all$mov,
+        cutpoint = 0
+      )
+    )
+  )
+
+msummary(
+  models,
+  estimate = "{estimate}{stars}",
+  statistic = "({std.error})",
+  stars = c("*" = .1, "**" = .05, "***" = .01, "****" = .001),
+  coef_map = c("(Intercept)" = "Intercept",
+               "D" = "LATE",
+               "x" = "Margin of Victory (Control)",
+               "x_right" = "Margin of Victory (Treatment)"
+  ),
+  caption = "RDD Sum Trends (Separate Slopes)"
+) %>% 
+  footnote(general = "Standard errors in parentheses. * p <0.1, ** p <0.05, *** p <0.01, **** p<0.001.", 
+           footnote_as_chunk = T) %>% 
+  kable_styling(latex_options = c("scale_down", "HOLD_position"))
+```
+
