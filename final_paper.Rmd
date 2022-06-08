@@ -10,7 +10,7 @@ header-includes:
    \setlength\headheight{28pt}
    \fancyhead[L]{\includegraphics[width=5cm]{figures/hertie-school.png}}
 bibliography: bibliography.bib
-abstract: "Test abstract"
+abstract: "This paper uses Regression Discontinuity Design (RDD) to estimate the effect of close district elections on digital public attention, measured as the dynamic of Wikipedia page views. By using different operationalizations of the outcome in linear RDD models with both common and separate slopes, the author finds stable positive estimations of the local average treatment effect (LATE) across constituency candidates from three German federal elections (2009, 2013 and 2017)."
 ---
 
 ```{r setup, include=FALSE}
@@ -32,13 +32,11 @@ source("theme_academia.R")
 theme_set(theme_academia())
 ```
 
-# Adding Abstract?
-
 # Introduction 
 
-The last few years have been characterized by increasing overall digitalization in general and "mediatisation" of politics in particular [@marcinkowski2014mediatisation]. This trend reveals new opportunities for political science, while also challenging existing frameworks and established theories. One of the most visited webpages in the internet -- the only encyclopedia *Wikipedia* -- presents a controversial pillar in the research community. While facing a lot of rejection in academia since its establishment, recent studies have shown the general potential of Wikipedia as a far-reaching data source [@brown2011wikipedia; @gobel2018political], which is also capable of being a competitor or replacement of existing established data sources in political science [@herrmann2021party]. Wikipedia is not only delivering encyclopedic information with its articles per se, but also offering the potential to analyze obtained meta information, such as page editing dynamics and page views. The level of observation plays a crucial part in this case: With more general units, such as parties or elections, the number of observations is rather low and the scope of potential analyses might be limited, whereas MP-level analyses do not face the problem of observational scarcity (as least not in established democracies). @gobel2021comparative introduce the possibilities of analyzing MPs based on scraped data from Wikipedia and present a databsase that covers biographical, political and article meta-information for parliamentarians in several countries.
+The last few years have been characterized by increasing overall digitalization in general and "mediatisation" of politics in particular [@marcinkowski2014mediatisation]. This trend reveals new opportunities for political science, while also challenging existing frameworks and established theories. One of the most visited webpages in the internet -- the only encyclopedia *Wikipedia* -- presents a controversial pillar in the research community. While facing a lot of rejection in academia since its establishment, recent studies have shown the general potential of Wikipedia as a far-reaching data source [@brown2011wikipedia; @gobel2018political], which is also capable of being a competitor or replacement of existing established data sources in political science [@herrmann2021party]. Wikipedia is not only delivering encyclopedic information with its articles per se, but also offering the potential to analyze obtained meta information, such as page editing dynamics and page views. The level of observation plays a crucial part in this case: With more general units, such as parties or elections, the number of observations is rather low and the scope of potential analyses might be limited, whereas MP level analyses do not face the problem of observational scarcity (as least not in established democracies). @gobel2021comparative introduce the possibilities of analyzing MPs based on scraped data from Wikipedia and present a databsase that covers biographical, political and article meta-information for parliamentarians in several countries.
 \break
-Election research in political science is classically dominated by "genuine" electoral variables, such as vote shares and turnout. With the rise of regression discontinuity design (RDD) in economics and political science, the most common application of this technique is also falling in the realm of classical electoral analyses [@lee2008randomized; @hainmueller2008incumbency; @eggers2015validity]. With the goal of combining a topic that is relevant for an increasing digitalized society and polity by making use of an established causal inference method (RDD), this paper is trying to make a contribution in assessing the relationship between MPs' digital public attention and electoral success, while putting an emphasis on technical specifications and potential analysis problems that are inherently part of the underlying data structure itself.
+Election research in political science is classically dominated by "genuine" electoral variables, such as vote shares and turnout. With the rise of regression discontinuity design (RDD) in economics and political science, the most common application of this technique is also falling in the realm of classical electoral analyses [@lee2008randomized; @hainmueller2008incumbency; @eggers2015validity]. With the goal of combining a topic that is relevant for an increasingly digitalized society and polity by making use of an established causal inference method (RDD), this paper is trying to make a contribution in assessing the relationship between MPs' digital public attention and electoral success, while putting an emphasis on technical and data-related specifications, as well as potential analysis problems that are inherently part of the underlying data structure itself.
 
 \newpage
 
@@ -52,7 +50,7 @@ A more suitable and representative metric that serves as an assessment indicator
 
 ## *Electoral Districts and MPs*
 
-Analyzing and explaining electoral outcomes is at the core of empirical political science. Vote shares play a prominent role, either on a federal or district level. The former case makes it normally harder to analyze the performance of individual candidates, while the latter presents clear electoral metrics that indicate the performance of candidates and incumbents in elections. Assessing the electoral success of a district candidate can simply be measured by the vote share. In order to make it comparable and to have a clear indication on whether and how much a candidate won or lost the district election, the *Margin of Victory* (MOV) can be used. @hainmueller2008incumbency [p. 219] define it as the difference between the vote share of the party and the party with the highest vote share. For winning parties, it is simply the vote share difference between them and the party with the second highest vote share, while the MOV for all other parties is the difference between their vote share and the result of the winning party. By definition, all winning candidates have a positive MOV, whereas all loosing competitors have a negative MOV, which also yields a dichotomous differentiation.
+Analyzing and explaining electoral outcomes is at the core of empirical political science. Vote shares play a prominent role, either on a federal or district level. The former case makes it normally harder to analyze the performance of individual candidates, while the latter presents clear electoral metrics that indicate the performance of candidates and incumbents in elections. Assessing the electoral success of a district candidate can simply be measured by the vote share. In order to make it comparable and to have a clear indication on whether and how much a candidate won or lost the district election, the *Margin of Victory* (MOV) can be used. @hainmueller2008incumbency [p. 219] define it as the difference between the vote share of the party and the party with the highest vote share apart from the party itself. For winning parties, it is simply the vote share difference between them and the party with the second highest vote share, while the MOV for all other parties is the difference between their vote share and the result of the winning party. By definition, all winning candidates have a positive MOV, whereas all loosing competitors have a negative MOV, which also yields a dichotomous differentiation.
 \break
 Electoral systems that at least include a single member district (SMD) element, such as the German (federal) system, are suitable for analyzing incumbency via MOVs [@nohlen2013wahlrecht]. Another important factor for the suitability of the case selection lies in the stability of political systems with regards to the direct candidates and its party affiliations. In emerging democracies and thus emerging party systems, observing consistent incumbency and party affiliation is less likely to happen, with the implication of a rather vague research design structure. Analyzing the effect of incumbency in established democracies, such as the United Kingdom [@eggers2009mps] or Germany [@hainmueller2008incumbency], is backed up by validated studies on the other hand.
 
@@ -423,7 +421,7 @@ msummary(
   kable_styling(latex_options = c("scale_down", "HOLD_position"))
 ```
 
-Tables 4 and 5 show the results for the mean and sum trend models (also ISH-transformed), where the regression slopes were estimated separately. Again, no MOV coefficient is significant, also not when estimated group-wise. While the 1 and 3 months trend models are providing no significant LATE coefficient, neither for the mean nor for the sum trends, the 6 and 12 months trend models are yielding significant LATE coefficients across all model specifications.
+Tables 4 and 5 show the results for the mean and sum trend models (also ISH-transformed), where the regression slopes were estimated separately. Again, no MOV coefficient is significant, also not when estimated group-wise. While the 1 and 3 months trend models are providing no significant LATE coefficient, neither for the mean nor for the sum trends, the 6 and 12 months trend models are yielding significant LATE coefficients across all model specifications. The results for the (16) corresponding models without any transformation of the trend outcome measures are part of the appendix (Tables 6, 7, 8 and 9). None of the models yield any significant results, which clearly emphasizes the necessity of applying ISH transformation. 
 
 ```{r}
 # ish mean trend separate slopes
@@ -598,24 +596,13 @@ msummary(
   kable_styling(latex_options = c("scale_down", "HOLD_position"))
 ```
 
-
 # Discussion and Conclusion
 
-
-
-
-
-
-
-
-
-
-"close winners/loosers" not really close from a polsci perspective?
-
-
-just linear models added
-
-variation in bandwidth
+The goal of the paper was to apply the established RDD framework on a rather novel field of empirical political science: Using electoral district vote share results of 3 German federal elections as an explanatory variable in order to understand page view trend dynamics of MP's Wikipedia articles as a measure of (digital) public attention in a causal inference setup. While the original outcome measures are highly skewed with high positive and negative outlier values, rescaling (ISH transformation) the dependent variables leads to stable significant result of the models. All models with 6 and 12 months trend outcome measures (covering 12 and 24 months time spans) are yielding significant positive estimations of the LATE. While the effect of the running variable itself (MOV) is overall not meaningful, there is a significant difference between the control and treatment group in the mentioned time spans.
+\break
+Future work should focus on the imbalance of the page view trend dynamics, since it directly reflects the public attention of politicians. Statistical and causal measures could involve clustering and matching strategies, which are sufficiently appropriate to deal with MPs' heterogeneity from a theoretical and empirical perspective.
+\break
+In addition, the chosen bandwidth of the IK algorithm was leading to a relatively large causal discontinuity sample. This is potentially problematic for both causal and theoretical considerations. Prior work has been placing a key emphasis on "close district races", which is likely not met in this paper's analysis. However, the reliability of the results can be tested by applying artificially chosen smaller bandwidth values. In addition, this paper only analyzed district candidates that were competing in German federal elections. Comparing the results with analyses from other countries that use SMDs should be a future goal, as well as linking the approach to current MP level research [@rauh2020parlspeech; @saltzer2020finding]. While party affiliation is an already existing metric, further more specific political variables that vary on the MP level could really benefit our understanding of political elite behavior and its connection to the public sphere.
 
 \newpage
 # References
